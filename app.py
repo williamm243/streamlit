@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 # Load the dataset
@@ -28,25 +28,26 @@ filtered_data = data[(data['common_name'] == product) &
 # Display the trend
 st.subheader(f'Trend for {product} in {county}')
 
+fig, ax = plt.subplots(figsize=(10, 5))
+
 if selected_type == 'Both':
     consumption_data = filtered_data[filtered_data['Type'] == 'Consumption'].groupby('periodid')['value'].sum().reset_index()
     service_data = filtered_data[filtered_data['Type'] == 'Service'].groupby('periodid')['value'].sum().reset_index()
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=consumption_data['periodid'], y=consumption_data['value'],
-                             mode='lines+markers', name='Consumption', line=dict(color='firebrick')))
-    fig.add_trace(go.Scatter(x=service_data['periodid'], y=service_data['value'],
-                             mode='lines+markers', name='Service', line=dict(color='blue')))
+    ax.plot(consumption_data['periodid'], consumption_data['value'], marker='o', linestyle='-', label='Consumption', color='firebrick')
+    ax.plot(service_data['periodid'], service_data['value'], marker='x', linestyle='-', label='Service', color='blue')
 else:
     filtered_data = filtered_data[filtered_data['Type'] == selected_type]
     aggregated_data = filtered_data.groupby('periodid')['value'].sum().reset_index()
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=aggregated_data['periodid'], y=aggregated_data['value'],
-                             mode='lines+markers', name=selected_type))
+    ax.plot(aggregated_data['periodid'], aggregated_data['value'], marker='o', linestyle='-', label=selected_type)
 
-fig.update_layout(title=f'Trend of {product} in {county}', xaxis_title='Date', yaxis_title='Value')
-st.plotly_chart(fig)
+ax.set_title(f'Trend of {product} in {county}')
+ax.set_xlabel('Date')
+ax.set_ylabel('Value')
+ax.legend()
+ax.grid(True)
+st.pyplot(fig)
 
 # Forecasting
 st.subheader(f'Forecast for {product} in {county}')
@@ -64,13 +65,16 @@ if selected_type != 'Both':
     conf_int.columns = ['lower', 'upper']
 
     # Plot the forecast
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=aggregated_data['periodid'], y=aggregated_data['value'], mode='lines+markers', name='Observed'))
-    fig.add_trace(go.Scatter(x=forecast_index, y=forecast_values, mode='lines+markers', name='Forecast'))
-    fig.add_trace(go.Scatter(x=forecast_index, y=conf_int['lower'], fill=None, mode='lines', line_color='gray', name='Lower CI'))
-    fig.add_trace(go.Scatter(x=forecast_index, y=conf_int['upper'], fill='tonexty', mode='lines', line_color='gray', name='Upper CI'))
-    fig.update_layout(title=f'Forecast of {product} in {county}', xaxis_title='Date', yaxis_title='Value')
-    st.plotly_chart(fig)
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(aggregated_data['periodid'], aggregated_data['value'], marker='o', linestyle='-', label='Observed')
+    ax.plot(forecast_index, forecast_values, marker='x', linestyle='-', label='Forecast')
+    ax.fill_between(forecast_index, conf_int['lower'], conf_int['upper'], color='gray', alpha=0.2, label='Confidence Interval')
+    ax.set_title(f'Forecast of {product} in {county}')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Value')
+    ax.legend()
+    ax.grid(True)
+    st.pyplot(fig)
 
     # Display forecast table
     st.subheader('Forecast Table')
